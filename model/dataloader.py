@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 from scipy.ndimage import zoom
 
-from config import vocab_path, buckets
+from config import vocab_path, buckets, dataset_dir
 from torch.utils.data import Dataset
 from model.utils import load_json
 
