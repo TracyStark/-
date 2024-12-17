@@ -43,18 +43,19 @@ def collate_fn(batch_images):
     return images, labels, batch_images
 
 
-def collate_fn_MyDataset(
-        batch: list[tuple]
-):
+def collate_fn_MyDataset(batch):
+    """
+    自定义的collate_fn函数，用于将一个batch的数据拼接成一个tensor
+    """
     max_width, max_height, max_length = 0, 0, 0
-    BATCH_SIZE, CHANNEL = len(batch), 1
+    BATCH_SIZE, CHANNEL = len(batch), 3  # 修改通道数为 3
     proper_items = []
     for sample in batch:  # iterate over each samples
         image, label, label_len = sample
-        if image.shape[0] * max_width > 1600 * 320 or image.shape[1] * max_height > 1600 * 320:
+        if image.shape[1] * max_width > 1600 * 320 or image.shape[2] * max_height > 1600 * 320:
             continue
-        max_height = max(max_height, image.shape[0])
-        max_width = max(max_width, image.shape[1])
+        max_height = max(max_height, image.shape[1])
+        max_width = max(max_width, image.shape[2])
         max_length = max(max_length, label_len)
         proper_items.append(sample)
 
@@ -66,7 +67,7 @@ def collate_fn_MyDataset(
 
     for i, sample in enumerate(proper_items):
         image, label, label_len = sample
-        h, w = image.shape
+        _, h, w = image.shape
         images[i][:, :h, :w] = image
         image_masks[i][:, :h, :w] = 1
         l = label_len
