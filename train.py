@@ -1,7 +1,6 @@
 import time
-
+import pandas as pd
 from tensorboardX import SummaryWriter
-
 from config import *
 import torch.backends.cudnn as cudnn
 import torch.optim
@@ -13,20 +12,12 @@ from model.utils import *
 from model import metrics, dataloader, model
 from torch.utils.checkpoint import checkpoint as train_ck
 from torch.utils.data import DataLoader
-
 from model.dataloader import MyDataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 model.device = device
-'''
-如果网络的输入数据维度或类型上变化不大，设置  torch.backends.cudnn.benchmark = true  可以增加运行效率；
-如果网络的输入数据在每次 iteration 都变化的话，会导致 cnDNN 每次都会去寻找一遍最优配置，这样反而会降低运行效率。
-'''
-
 
 # cudnn.benchmark = True
-
 
 def main():
     """
@@ -93,6 +84,10 @@ def main():
     )
 
     p = 1  # teacher forcing概率
+
+    # 用于记录每个 epoch 的结果
+    results = []
+
     # Epochs
     for epoch in tqdm(range(start_epoch, epochs)):
         # 每2个epoch衰减一次teahcer forcing的概率
@@ -144,7 +139,21 @@ def main():
                 save_checkpoint(data_name, epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer,
                                 decoder_optimizer, recent_score, is_best)
         print('--------------------------------------------------------------------------')
+
+        # 记录每个 epoch 的结果
+        results.append({
+            'epoch': epoch,
+            'train_loss': train_loss,
+            'validation_score': recent_score,
+            'teacher_forcing_probability': p
+        })
+
     writer.close()
+
+    # 保存结果到 Excel 文件
+    df = pd.DataFrame(results)
+    df.to_excel('training_results.xlsx', index=False)
+    print('Results saved to training_results.xlsx')
 
 
 def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch, p):

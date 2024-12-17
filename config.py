@@ -17,7 +17,7 @@ buckets = [[240, 100], [320, 80], [400, 80], [400, 100], [480, 80], [480, 100],
 
 # 训练参数
 start_epoch = 0
-epochs = 50  # 不触发早停机制时候最大迭代次数
+epochs = 20  # 不触发早停机制时候最大迭代次数
 epochs_since_improvement = 0  # 用于跟踪在验证集上分数没有提高的迭代次数
 batch_size = 32  # 训练集批大小
 test_batch_size = 32  # 验证集批大小
