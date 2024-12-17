@@ -1,2 +1,8 @@
 Distance
 nltk
+tensorboardX
+torch
+torchvision
+torchaudio
+opencv-python
+scipy

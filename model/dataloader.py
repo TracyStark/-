@@ -12,8 +12,8 @@ from config import vocab_path, buckets
 from torch.utils.data import Dataset
 from model.utils import load_json
 
-with open(vocab_path) as f:
-    words = f.readlines()
+with open(vocab_path, 'r') as f:
+    words = f.read().splitlines()
 words.append("<start>")
 words.append("<end>")
 vocab = {value.strip(): index + 1 for index, value in enumerate(words)}
