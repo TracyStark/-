@@ -129,13 +129,16 @@ class MyDataset(Dataset):
         
         idx_in_list = idx - self.n_samples_list[self.current_file_idx]
         image = self.images_and_labels[idx_in_list]["image"]
+        # 如果图像已经是三通道，则直接处理
         if image.shape[-1] == 3:
-            # convert RGB to grayscale and normalize
-            # (w, h, c) -> (w, h)
-            image = (0.299 * image[:, :, 0] + 0.587 * image[:, :, 1] + 0.114 * image[:, :, 2]) / 255
+            image = image / 255.0  # 归一化到 [0, 1]
+        else:
+            # 如果图像是单通道，则重复三次以形成三通道
+            image = np.repeat(image[:, :, np.newaxis], 3, axis=2) / 255.0
+
         # Perform downsampling using scipy's zoom function
-        image = zoom(image, 1 / self.ratio, order=1)  # order=1 corresponds to bilinear interpolation
-        image = torch.tensor(image).float().unsqueeze(0).repeat(3, 1, 1)  # 转换为 (3, H, W) 形状
+        image = zoom(image, (1 / self.ratio, 1 / self.ratio, 1), order=1)  # order=1 corresponds to bilinear interpolation
+        image = torch.tensor(image).float().permute(2, 0, 1)  # 转换为 (3, H, W) 形状
         label: str = self.images_and_labels[idx_in_list]["label"]
         label_list = self.label_transform(label)
 
