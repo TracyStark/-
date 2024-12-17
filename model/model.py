@@ -8,10 +8,14 @@ from torchvision import models
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class ResNetEncoder(nn.Module):
-    def __init__(self):
+    def __init__(self, input_channels=3):
         super(ResNetEncoder, self).__init__()
         resnet = models.resnet50(pretrained=True)
         self.resnet = nn.Sequential(*list(resnet.children())[:-2])  # 去掉最后的全连接层和池化层
+
+        # 修改第一个卷积层以处理 RGB 三通道图像
+        if input_channels != 3:
+            self.resnet[0] = nn.Conv2d(input_channels, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
     def forward(self, x):
         x = self.resnet(x)  # 输出形状为 (batch_size, 2048, H, W)
@@ -166,5 +170,5 @@ class DecoderWithAttention(nn.Module):
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind
 
 # 实例化 ResNetEncoder 并替换现有的 Encoder
-encoder = ResNetEncoder().to(device)
+encoder = ResNetEncoder(input_channels=3).to(device)
 decoder = DecoderWithAttention(attention_dim=512, embed_dim=512, decoder_dim=512, vocab_size=5000).to(device)
