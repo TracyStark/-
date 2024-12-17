@@ -3,127 +3,19 @@ import torch
 import math
 from torch import nn
 import torch.nn.functional as F
+from torchvision import models
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# device = "cpu"
 
-
-class Encoder(nn.Module):
+class ResNetEncoder(nn.Module):
     def __init__(self):
-        super(Encoder, self).__init__()
-        self.conv1 = nn.Conv2d(1, 128, 3, stride=1, padding=1)
-        self.maxpool1 = nn.MaxPool2d(2, stride=1, padding=1)
-
-        self.conv2 = nn.Conv2d(128, 192, 3, stride=1, padding=1)
-        self.maxpool2 = nn.MaxPool2d(2, stride=1, padding=1)
-
-        # self.conv3 = nn.Conv2d(128, 256, 3, stride=1, padding=1)
-
-        self.conv4 = nn.Conv2d(192, 256, 3, stride=1, padding=1)
-        self.maxpool3 = nn.MaxPool2d((2, 1), stride=(2, 1), padding=(1, 0))
-
-        self.conv5 = nn.Conv2d(256, 512, 3, stride=1, padding=1)
-        self.maxpool4 = nn.MaxPool2d((1, 2), stride=(1, 2), padding=(0, 1))
-
-        self.conv6 = nn.Conv2d(512, 512, 3)
+        super(ResNetEncoder, self).__init__()
+        resnet = models.resnet50(pretrained=True)
+        self.resnet = nn.Sequential(*list(resnet.children())[:-2])  # 去掉最后的全连接层和池化层
 
     def forward(self, x):
-        # layer1
-        x = self.conv1(x)
-        x = self.maxpool1(x)
-        x = F.relu(x)
-
-        # layer2
-        x = self.conv2(x)
-        x = self.maxpool2(x)
-        x = F.relu(x)
-
-        # layer3
-        # x = self.conv3(x)
-        # x = F.relu(x)
-
-        # layer4
-        x = self.conv4(x)
-        x = self.maxpool3(x)
-        x = F.relu(x)
-
-        # layer5
-        x = self.conv5(x)
-        x = self.maxpool4(x)
-        x = F.relu(x)
-
-        # layer6
-        x = self.conv6(x)
-        x = F.relu(x)
-
-        # 位置嵌入
-        x = x.permute(0, 2, 3, 1)
-        x = self.add_timing_signal_nd(x)
-        x = x.permute(0, 3, 1, 2)
-
-        x = x.contiguous()
+        x = self.resnet(x)  # 输出形状为 (batch_size, 2048, H, W)
         return x
-
-    # 修改自:
-    # https://github.com/tensorflow/tensor2tensor/blob/37465a1759e278e8f073cd04cd9b4fe377d3c740/tensor2tensor/layers/common_attention.py
-    def add_timing_signal_nd(self, x, min_timescale=1.0, max_timescale=1.0e4):
-        """Adds a bunch of sinusoids of different frequencies to a Tensor.
-
-        Each channel of the input Tensor is incremented by a sinusoid of a difft
-        frequency and phase in one of the positional dimensions.
-
-        This allows attention to learn to use absolute and relative positions.
-        Timing signals should be added to some precursors of both the query and the
-        memory inputs to attention.
-
-        The use of relative position is possible because sin(a+b) and cos(a+b) can
-        be experessed in terms of b, sin(a) and cos(a).
-
-        x is a Tensor with n "positional" dimensions, e.g. one dimension for a
-        sequence or two dimensions for an image
-
-        We use a geometric sequence of timescales starting with
-        min_timescale and ending with max_timescale.  The number of different
-        timescales is equal to channels // (n * 2). For each timescale, we
-        generate the two sinusoidal signals sin(timestep/timescale) and
-        cos(timestep/timescale).  All of these sinusoids are concatenated in
-        the channels dimension.
-
-        Args:
-            x: a Tensor with shape [batch, d1 ... dn, channels]
-            min_timescale: a float
-            max_timescale: a float
-
-        Returns:
-            a Tensor the same shape as x.
-
-        """
-        static_shape = list(x.shape)  # [2, 512, 50, 120]
-        num_dims = len(static_shape) - 2  # 2
-        channels = x.shape[-1]  # 512 
-        num_timescales = channels // (num_dims * 2)  # 512 // (2*2) = 128
-        log_timescale_increment = (
-                math.log(float(max_timescale) / float(min_timescale)) /
-                (float(num_timescales) - 1))
-        inv_timescales = min_timescale * torch.exp(
-            torch.FloatTensor([i for i in range(num_timescales)]) * -log_timescale_increment)  # len == 128
-        for dim in range(num_dims):  # dim == 0; 1
-            length = x.shape[dim + 1]  # 要跳过前两个维度
-            position = torch.arange(length).float()  # len == 50
-            scaled_time = torch.reshape(position, (-1, 1)) * torch.reshape(inv_timescales, (1, -1))
-            # [50,1] x [1,128] = [50,128]
-            signal = torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], axis=1).to(device)  # [50, 256]
-            prepad = dim * 2 * num_timescales  # 0; 256
-            postpad = channels - (dim + 1) * 2 * num_timescales  # 512-(1;2)*2*128 = 256; 0
-            signal = F.pad(signal, (prepad, postpad, 0, 0))  # [50, 512]
-            for _ in range(1 + dim):  # 1; 2
-                signal = signal.unsqueeze(0)
-            for _ in range(num_dims - 1 - dim):  # 1, 0
-                signal = signal.unsqueeze(-2)
-            # don't use +=, or the in-place calculation will raise error in backward
-            x = x + signal  # [1, 14, 1, 512]; [1, 1, 14, 512]
-        return x
-
 
 class Attention(nn.Module):
     """
@@ -158,13 +50,12 @@ class Attention(nn.Module):
 
         return attention_weighted_encoding, alpha
 
-
 class DecoderWithAttention(nn.Module):
     """
     Decoder.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, encoder_dim=512, dropout=0.5, p=0):
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, encoder_dim=2048, dropout=0.5, p=0):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -186,10 +77,9 @@ class DecoderWithAttention(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
         self.dropout = nn.Dropout(p=self.dropout)
-        # self.decode_step = nn.LSTMCell(embed_dim + encoder_dim, decoder_dim, bias=True)  # decoding LSTMCell
-        self.decode_step = nn.GRUCell(embed_dim + encoder_dim, decoder_dim, bias=True)  # decoding LSTMCell
-        self.init_h = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial hidden state of LSTMCell
-        self.init_c = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial cell state of LSTMCell
+        self.decode_step = nn.GRUCell(embed_dim + encoder_dim, decoder_dim, bias=True)  # decoding GRUCell
+        self.init_h = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial hidden state of GRUCell
+        self.init_c = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial cell state of GRUCell
         self.f_beta = nn.Linear(decoder_dim, encoder_dim)  # linear layer to create a sigmoid-activated gate
         self.sigmoid = nn.Sigmoid()
         self.fc = nn.Linear(decoder_dim, vocab_size)  # linear layer to find scores over vocabulary
@@ -213,9 +103,8 @@ class DecoderWithAttention(nn.Module):
         """
         mean_encoder_out = encoder_out.mean(dim=1)
         h = self.init_h(mean_encoder_out)  # (batch_size, decoder_dim)
-        # c = self.init_c(mean_encoder_out)
-        # return h, c
-        return h
+        c = self.init_c(mean_encoder_out)
+        return h, c
 
     def forward(self, encoder_out, encoded_captions=torch.zeros(1, 16, device="cuda", dtype=torch.long),
                 caption_lengths=torch.tensor([16], device="cuda"), p=1):
@@ -237,17 +126,14 @@ class DecoderWithAttention(nn.Module):
 
         # Sort input data by decreasing lengths; why? apparent below
         caption_lengths, sort_ind = caption_lengths.sort(dim=0, descending=True)
-        # print('sort_ind',sort_ind,'encoder_out',encoder_out.shape,'encoder_captions',encoded_captions.shape)
         encoder_out = encoder_out[sort_ind]
         encoded_captions = encoded_captions[sort_ind]
-        # encoded_captions = torch.stack([encoded_captions for _ in range(num_pixels)], dim=2)
 
         # Embedding
         embeddings = self.embedding(encoded_captions)  # (batch_size, max_caption_length, embed_dim)
 
         # 初始化GRU状态
-        # h, c = self.init_hidden_state(encoder_out)  # (batch_size, decoder_dim)
-        h = self.init_hidden_state(encoder_out)  # (batch_size, decoder_dim)
+        h, c = self.init_hidden_state(encoder_out)  # (batch_size, decoder_dim)
 
         # 我们一旦生成了<end>就已经完成了解码
         # 因此需要解码的长度实际是 lengths - 1
@@ -264,10 +150,6 @@ class DecoderWithAttention(nn.Module):
                                                                 h[:batch_size_t])
             gate = self.sigmoid(self.f_beta(h[:batch_size_t]))  # gating scalar, (batch_size_t, encoder_dim)
             attention_weighted_encoding = gate * attention_weighted_encoding
-            # h, c = self.decode_step(
-            #     torch.cat([embeddings[:batch_size_t, t, :], attention_weighted_encoding], dim=1),
-            #     (h[:batch_size_t], c[:batch_size_t]))  # (batch_size_t, decoder_dim)
-            # teahcer forcing
             if t == 1 or (np.random.rand() < self.p):
                 h = self.decode_step(
                     torch.cat([embeddings[:batch_size_t, t, :], attention_weighted_encoding], dim=1),
@@ -282,3 +164,7 @@ class DecoderWithAttention(nn.Module):
             alphas[:batch_size_t, t, :] = alpha
 
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind
+
+# 实例化 ResNetEncoder 并替换现有的 Encoder
+encoder = ResNetEncoder().to(device)
+decoder = DecoderWithAttention(attention_dim=512, embed_dim=512, decoder_dim=512, vocab_size=5000).to(device)

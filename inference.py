@@ -37,9 +37,9 @@ else:
 decoder = decoder.to(device)
 encoder = encoder.to(device)
 
-test_dataset = MyDataset(test_path, is_train=False, is_test=True)
+test_dataset = MyDataset(test_path, is_train=False)
 
-test_loader = DataLoader(test_dataset, batch_size=1, collate_fn=collate_fn_MyDataset, num_workers=0)
+test_loader = DataLoader(test_dataset, batch_size=test_batch_size, collate_fn=collate_fn_MyDataset, num_workers=0)
 
 decoder.eval()
 
@@ -58,10 +58,10 @@ with tqdm(enumerate(test_loader), leave=False, total=len(test_loader), position=
         imgs = imgs.to(device)
         if encoder is not None:
             imgs = encoder(imgs)
-            predictions, alphas,the_list = decoder.inference(imgs)
+            predictions, alphas, the_list = decoder.inference(imgs)
             word_list = []
             for i in the_list:
                 word_list.append(words[i])
             with open("output_2.txt", "a") as file:
-                file.write(" ".join(word_list))  # 使用逗号分隔列表元素
+                file.write(" ".join(word_list))  # 使用空格分隔列表元素
                 file.write("\n")

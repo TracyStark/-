@@ -1,15 +1,14 @@
-from model.model import Encoder
+from model.model import ResNetEncoder
 from model.model import DecoderWithAttention
 from config import *
 import torch
 
-encoder = Encoder()
+encoder = ResNetEncoder()
 decoder = DecoderWithAttention(attention_dim=attention_dim,
                                embed_dim=emb_dim,
                                decoder_dim=decoder_dim,
                                vocab_size=414,
                                dropout=dropout)
-
 
 def test_params_flop(model, x_shape):
     """
@@ -26,6 +25,5 @@ def test_params_flop(model, x_shape):
         print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
         print('{:<30}  {:<8}'.format('Number of parameters: ', params))
 
-
-test_params_flop(encoder, (1, 64, 64))
+test_params_flop(encoder, (3, 224, 224))  # 修改输入形状为 (3, 224, 224)
 test_params_flop(decoder, (512, 32, 32))

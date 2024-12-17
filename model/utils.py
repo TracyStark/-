@@ -7,7 +7,7 @@ import torch
 
 def test_params_flop(model, x_shape):
     """
-    If you want to thest former's flop, you need to give default value to inputs in model.forward(), the following code can only pass one argument to forward()
+    If you want to test former's flop, you need to give default value to inputs in model.forward(), the following code can only pass one argument to forward()
     """
     from ptflops import get_model_complexity_info
     with torch.cuda.device(0):

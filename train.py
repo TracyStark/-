@@ -38,22 +38,11 @@ def main():
     # Initialize TensorBoard writer
     writer = SummaryWriter(log_dir='./runs/experiment_1')
 
-    # [Rest of the existing initialization code remains the same]
     with open(vocab_path) as f:
         words = f.readlines()
     words.append("<start>")
     words.append("<end>")
-    word_map = {value: index + 1 for index, value in enumerate(words)}
-    word_map["<pad>"] = 0
-
-    # 字典文件
-    # word_map = load_json(vocab_path)
-    with open(vocab_path) as f:
-        words = f.readlines()
-    words.append("<start>")
-    words.append("<end>")
-    # vocab = load_json(vocab_path)
-    word_map = {value: index + 1 for index, value in enumerate(words)}
+    word_map = {value.strip(): index + 1 for index, value in enumerate(words)}
     word_map["<pad>"] = 0
 
     # Initialize / load checkpoint
@@ -65,8 +54,7 @@ def main():
                                              dropout=dropout)
         decoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, decoder.parameters()),
                                              lr=decoder_lr)
-        encoder = model.Encoder()
-        # encoder_optimizer = None
+        encoder = model.ResNetEncoder()
         encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
                                              lr=encoder_lr)
 
@@ -79,20 +67,10 @@ def main():
         encoder_optimizer = checkpoint['encoder_optimizer']
         decoder_optimizer = checkpoint['decoder_optimizer']
         encoder = checkpoint['encoder']
-        # encoder_optimizer = checkpoint['encoder_optimizer']
-        # encoder_optimizer = None
-        # if fine_tune_encoder is True and encoder_optimizer is None:
-        #     encoder.fine_tune(fine_tune_encoder)
-        #     encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
-        #                                          lr=encoder_lr)
 
     # Move to GPU, if available
     decoder = decoder.to(device)
     encoder = encoder.to(device)
-
-    # test_params_flop(encoder, (1, 64, 64))
-    # test_params_flop(decoder, (512, 32, 32))
-    # exit(1)
 
     # 使用交叉熵损失函数
     criterion = nn.CrossEntropyLoss().to(device)
@@ -114,9 +92,6 @@ def main():
         num_workers=0
     )
 
-    # #统计验证集的词频
-    # words_freq = cal_word_freq(word_map,val_loader)
-    # print(words_freq)
     p = 1  # teacher forcing概率
     # Epochs
     for epoch in tqdm(range(start_epoch, epochs)):
@@ -133,20 +108,17 @@ def main():
         if epochs_since_improvement > 0 and epochs_since_improvement % 2 == 0:
             adjust_learning_rate(decoder_optimizer, 0.7)
             adjust_learning_rate(encoder_optimizer, 0.8)
-        # 动态学习率调节
-        # torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.8, 
-        #     patience=4, verbose=True, threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=1e-6, eps=1e-8)
 
         # One epoch's training
         train_loss = train(train_loader=train_loader,
                            encoder=encoder,
                            decoder=decoder,
                            criterion=criterion,
-                           encoder_optimizer=decoder_optimizer,
+                           encoder_optimizer=encoder_optimizer,
                            decoder_optimizer=decoder_optimizer,
-                           epoch=epoch, p=p)  # encoder_optimizer=encoder_optimizer,
-        #
-        # # One epoch's validation
+                           epoch=epoch, p=p)
+
+        # One epoch's validation
         recent_score = validate(val_loader=val_loader,
                                 encoder=encoder,
                                 decoder=decoder,
@@ -212,8 +184,6 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
 
             # Remove timesteps that we didn't decode at, or are pads
             # pack_padded_sequence is an easy trick to do this
-            # scores, _ = pack_padded_sequence(scores, decode_lengths, batch_first=True)
-            # targets, _ = pack_padded_sequence(targets, decode_lengths, batch_first=True)
             scores = pack_padded_sequence(scores, decode_lengths.cpu().int(), batch_first=True).data
             targets = pack_padded_sequence(targets, decode_lengths.cpu().int(), batch_first=True).data
 
@@ -232,14 +202,10 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
             # 梯度裁剪
             if grad_clip is not None:
                 clip_gradient(decoder_optimizer, grad_clip)
-                # if encoder_optimizer is not None:
-                #     clip_gradient(encoder_optimizer, grad_clip)
 
             # 更新权重
             decoder_optimizer.step()
             encoder_optimizer.step()
-            # if encoder_optimizer is not None:
-            #     encoder_optimizer.step()
 
             total_loss += loss.item()
             batch_count += 1
@@ -249,9 +215,6 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
                 Avg_Loss=f"{total_loss / batch_count:.4e}"
             )
 
-            # if i % save_freq == 0:
-            #     save_checkpoint(data_name, epoch, epochs_since_improvement, encoder, decoder,encoder_optimizer,
-            #                 decoder_optimizer, 0,0)
     return total_loss / batch_count
 
 
@@ -321,25 +284,11 @@ def validate(val_loader, encoder, decoder, criterion):
                 )
 
                 # Store references (true captions), and hypothesis (prediction) for each image
-                # If for n images, we have n hypotheses, and references a, b, c... for each image, we need -
-                # references = [[ref1a, ref1b, ref1c], [ref2a, ref2b], ...], hypotheses = [hyp1, hyp2, ...]
-
-                # References
-                # allcaps = allcaps[sort_ind]  # because images were sorted in the decoder
-                # for j in range(allcaps.shape[0]):
-                #     img_caps = allcaps[j].tolist()
-                #     img_captions = list(
-                #         map(lambda c: [w for w in c if w not in {word_map['<start>'], word_map['<pad>']}],
-                #             img_caps))  # remove <start> and pads
-                #     references.append(img_captions)
                 caplens = caplens[sort_ind].int()
                 caps = caps[sort_ind]
                 for i in range(len(caplens)):
                     end = caplens[i].int().item()
                     references.append(caps[i][1:end].tolist())
-                    # references.append(caps[i][1:caplens[i]].tolist())
-                # Hypotheses
-                # 这里直接使用greedy模式进行评价,在推断中一般使用集束搜索模式
                 _, preds = torch.max(scores_copy, dim=2)
                 preds = preds.tolist()
                 temp_preds = list()
