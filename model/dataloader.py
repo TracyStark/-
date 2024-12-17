@@ -130,6 +130,7 @@ class MyDataset(Dataset):
         idx_in_list = idx - self.n_samples_list[self.current_file_idx]
         image = self.images_and_labels[idx_in_list]["image"]
         # 如果图像已经是三通道，则直接处理
+        #这里
         if image.shape[-1] == 3:
             image = image / 255.0  # 归一化到 [0, 1]
         else:
