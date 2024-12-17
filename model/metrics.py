@@ -9,25 +9,30 @@ def evaluate(losses, top3accs, references, hypotheses):
     :param top3accs: top-3 准确率
     :param references: 参考答案
     :param hypotheses: 模型预测结果
-    :return: 综合评分
+    :return: 包含所有指标的字典
     """
     # Calculate scores
     bleu4 = 0.0
     for i, j in zip(references, hypotheses):
         bleu4 += max(sentence_bleu([i], j), 0.01)
     bleu4 = bleu4 / len(references)
-    Exact_Match = exact_match_score(references, hypotheses)
-    Edit_Distance = edit_distance(references, hypotheses)
-    Score = bleu4 + Exact_Match + Edit_Distance / 10
+    exact_match = exact_match_score(references, hypotheses)
+    edit_distance = edit_distance_score(references, hypotheses)
+    score = bleu4 + exact_match + edit_distance / 10
     print(
-        '\n * LOSS:{loss.avg:.3f},TOP-3 ACCURACY:{top3.avg:.3f},BLEU-4:{bleu:.3f},Exact Match:{Exact_Match:.1f},Edit Distance:{Edit_Distance:.3f},Score:{Score:.6f}'.format(
+        '\n * LOSS:{loss.avg:.3f},TOP-3 ACCURACY:{top3.avg:.3f},BLEU-4:{bleu:.3f},Exact Match:{exact_match:.1f},Edit Distance:{edit_distance:.3f},Score:{score:.6f}'.format(
             loss=losses,
             top3=top3accs,
             bleu=bleu4,
-            Exact_Match=Exact_Match,
-            Edit_Distance=Edit_Distance,
-            Score=Score))
-    return Score
+            exact_match=exact_match,
+            edit_distance=edit_distance,
+            score=score))
+    return {
+        'BLEU-4': bleu4,
+        'Exact Match': exact_match,
+        'Edit Distance': edit_distance,
+        'Score': score
+    }
 
 def exact_match_score(references, hypotheses):
     """
@@ -43,7 +48,7 @@ def exact_match_score(references, hypotheses):
 
     return exact_match / float(max(len(hypotheses), 1))
 
-def edit_distance(references, hypotheses):
+def edit_distance_score(references, hypotheses):
     """
     Computes Levenshtein distance between two sequences.
     :param references: list of list of token (one hypothesis)
