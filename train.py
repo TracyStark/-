@@ -114,19 +114,19 @@ def main():
                            epoch=epoch, p=p)
 
         # One epoch's validation
-        recent_score = validate(val_loader=val_loader,
-                                encoder=encoder,
-                                decoder=decoder,
-                                criterion=criterion)
+        val_loss, top3_acc, bleu4, exact_match, edit_distance, score = validate(val_loader=val_loader,
+                                                                                encoder=encoder,
+                                                                                decoder=decoder,
+                                                                                criterion=criterion)
 
         writer.add_scalar('Training Loss', np.array(train_loss), epoch)
-        writer.add_scalar('Validation Score', np.array(recent_score), epoch)
+        writer.add_scalar('Validation Score', np.array(score), epoch)
         writer.add_scalar('Teacher Forcing Probability', np.array(p), epoch)
         if (p == 0):
             print('Stop teacher forcing!')
             # Check if there was an improvement
-            is_best = recent_score > best_score
-            best_score = max(recent_score, best_score)
+            is_best = score > best_score
+            best_score = max(score, best_score)
             if not is_best:
                 epochs_since_improvement += 1
                 print("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,))
@@ -137,14 +137,19 @@ def main():
             if epoch % save_freq == 0:
                 print('Saveing...')
                 save_checkpoint(data_name, epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer,
-                                decoder_optimizer, recent_score, is_best)
+                                decoder_optimizer, score, is_best)
         print('--------------------------------------------------------------------------')
 
         # 记录每个 epoch 的结果
         results.append({
             'epoch': epoch,
             'train_loss': train_loss,
-            'validation_score': recent_score,
+            'validation_loss': val_loss,
+            'top3_acc': top3_acc,
+            'bleu4': bleu4,
+            'exact_match': exact_match,
+            'edit_distance': edit_distance,
+            'score': score,
             'teacher_forcing_probability': p
         })
 
@@ -234,7 +239,7 @@ def validate(val_loader, encoder, decoder, criterion):
     :param encoder: encoder model
     :param decoder: decoder model
     :param criterion: 损失函数
-    :return: 验证集上的BLEU-4 score
+    :return: 验证集上的指标
     """
     decoder.eval()  # 推断模式,取消dropout以及批标准化
     if encoder is not None:
@@ -310,7 +315,7 @@ def validate(val_loader, encoder, decoder, criterion):
                 assert len(references) == len(hypotheses)
 
             Score = metrics.evaluate(losses, top3accs, references, hypotheses)
-    return Score
+    return losses.avg, top3accs.avg, Score['BLEU-4'], Score['Exact Match'], Score['Edit Distance'], Score['Score']
 
 
 if __name__ == '__main__':
