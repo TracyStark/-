@@ -6,3 +6,4 @@ torchvision
 torchaudio
 opencv-python
 scipy
+pandas
