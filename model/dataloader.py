@@ -78,7 +78,7 @@ def img_transform(img, size, ratio=1):
 class MyDataset(Dataset):
     def __init__(
         self, 
-        dataset_dir, 
+        dataset_dir=dataset_dir,
         img_transform=img_transform,
         label_transform=label_transform,
         ratio=2,

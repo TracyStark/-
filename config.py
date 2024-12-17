@@ -1,6 +1,5 @@
 # 数据路径
-dataset_dir = "data/small/images/images_train" #训练数据 .npy
-data_name = 'MyDataset'  # 模型名称,仅在保存的时候用到
+dataset_dir = "data/MyDataset"  # 更新为正确的目录
 vocab_path = 'data/MyDataset/vocab_v3.txt'
 train_set_path = './data/small/train.json'
 val_set_path = './data/small/val.json'
