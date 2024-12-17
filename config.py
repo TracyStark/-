@@ -1,5 +1,5 @@
 # 数据路径
-dataset_dir = "data/MyDataset"  # 更新为正确的目录
+dataset_dir = "data/MyDataset/RGB"  # 更新为正确的目录
 vocab_path = 'data/MyDataset/vocab_v3.txt'
 train_set_path = './data/small/train.json'
 val_set_path = './data/small/val.json'

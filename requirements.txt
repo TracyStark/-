@@ -7,3 +7,4 @@ torchaudio
 opencv-python
 scipy
 pandas
+openpyxl
