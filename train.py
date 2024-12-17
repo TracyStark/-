@@ -45,7 +45,7 @@ def main():
                                              dropout=dropout)
         decoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, decoder.parameters()),
                                              lr=decoder_lr)
-        encoder = model.ResNetEncoder()
+        encoder = model.ResNetEncoder(input_channels=3)  # 确保输入通道数为3
         encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
                                              lr=encoder_lr)
 

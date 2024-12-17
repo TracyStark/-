@@ -71,7 +71,6 @@ def img_transform(img, size, ratio=1):
     new_size = (int(img.shape[1] / ratio), int(img.shape[0] / ratio))
     new_im = cv2.resize(img, new_size, cv2.INTER_LANCZOS4)  # 先进行下采样
     new_im = cv2.resize(new_im, tuple(size))  # 再缩放到需要的大小
-    new_im = new_im[:, :, np.newaxis]
     to_tensor = torchvision.transforms.ToTensor()
     return to_tensor(new_im)
 
@@ -200,7 +199,8 @@ class formuladataset(object):
                 item = self.data[j]
                 caption = item['caption']
                 img = cv2.imread(item['img_path'])
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # 图片由BGR转灰度
+                if img.shape[-1] == 1:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)  # 将灰度图像转换为 RGB
                 cap_len_batch[idx] = item['caption_len']
                 if self.img_transform is not None:
                     img = self.img_transform(img, size=self.buckets[size_idx], ratio=self.ratio)
