@@ -27,6 +27,9 @@ def main():
 
     global best_score, epochs_since_improvement, checkpoint, start_epoch, fine_tune_encoder, data_name, word_map
 
+    # 定义 data_name 变量
+    data_name = "MyDataset"
+
     # Initialize TensorBoard writer
     writer = SummaryWriter(log_dir='./runs/experiment_1')
 
