@@ -83,7 +83,7 @@ def main():
         num_workers=0
     )
 
-    p = 1  # teacher forcing概率
+    p = 0.06 #1  # teacher forcing概率
 
     # 用于记录每个 epoch 的结果
     results = []
