@@ -84,7 +84,7 @@ def main():
         num_workers=0
     )
 
-    p = 0.06 #1  # teacher forcing概率
+    p = 0.06  # teacher forcing概率
 
     # 用于记录每个 epoch 的结果
     results = []
@@ -96,14 +96,17 @@ def main():
 
     # Epochs
     for epoch in tqdm(range(start_epoch, epochs)):
-        # 每2个epoch衰减一次teahcer forcing的概率
+        # 每3个epoch衰减一次teacher forcing的概率
         if p > 0.05:
             if epoch % 3 == 0 and epoch != 0:
                 p *= 0.75
         else:
             p = 0
 
-        # 如果迭代4次后没有改善,则对学习率进行衰减,如果迭代20次都没有改善则触发早停.直到最大迭代次数
+        # 打印当前 epoch 的 teacher forcing 概率
+        print(f'Epoch {epoch}: Teacher Forcing Probability = {p}')
+
+        # 如果迭代30次后没有改善,则触发早停
         if epochs_since_improvement == 30:
             break
         if epochs_since_improvement > 0 and epochs_since_improvement % 2 == 0:
@@ -130,20 +133,21 @@ def main():
         writer.add_scalar('Teacher Forcing Probability', np.array(p), epoch)
         if (p == 0):
             print('Stop teacher forcing!')
-            # Check if there was an improvement
-            is_best = score > best_score
-            best_score = max(score, best_score)
-            if not is_best:
-                epochs_since_improvement += 1
-                print("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,))
-            else:
-                print('New Best Score!(%d)' % (best_score,))
-                epochs_since_improvement = 0
+        # Check if there was an improvement
+        is_best = score > best_score
+        best_score = max(score, best_score)
+        if not is_best:
+            epochs_since_improvement += 1
+            print("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,))
+        else:
+            print('New Best Score!(%d)' % (best_score,))
+            epochs_since_improvement = 0
 
-            if epoch % save_freq == 0:
-                print('Saveing...')
-                save_checkpoint(data_name, epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer,
-                                decoder_optimizer, score, is_best)
+        # 保存 checkpoint
+        if epoch % save_freq == 0 or is_best:
+            print('Saving checkpoint...')
+            save_checkpoint(data_name, epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer,
+                            decoder_optimizer, score, is_best)
         print('--------------------------------------------------------------------------')
 
         # 记录每个 epoch 的结果
@@ -183,6 +187,7 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
     :param encoder_optimizer: optimizer to update encoder's weights (if fine-tuning)
     :param decoder_optimizer: optimizer to update decoder's weights
     :param epoch: epoch number
+    :param p: teacher forcing 概率
     """
 
     decoder.train()  # train mode (dropout and batchnorm is used)
