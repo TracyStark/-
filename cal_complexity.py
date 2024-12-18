@@ -25,5 +25,11 @@ def test_params_flop(model, x_shape):
         print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
         print('{:<30}  {:<8}'.format('Number of parameters: ', params))
 
+# 计算编码器的参数和 FLOPs
 test_params_flop(encoder, (3, 224, 224))  # 修改输入形状为 (3, 224, 224)
-test_params_flop(decoder, (512, 32, 32))
+
+# 计算解码器的参数和 FLOPs
+# 解码器的输入形状应该与编码器的输出形状一致
+encoder_output_shape = (2048, 7, 7)  # 假设编码器输出的形状为 (batch_size, 2048, 7, 7)
+decoder_input_shape = (1, 2048, 7, 7)  # 添加 batch_size 维度
+test_params_flop(decoder, decoder_input_shape)
