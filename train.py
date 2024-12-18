@@ -13,6 +13,7 @@ from model import metrics, dataloader, model
 from torch.utils.checkpoint import checkpoint as train_ck
 from torch.utils.data import DataLoader
 from model.dataloader import MyDataset
+import os
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.device = device
@@ -88,6 +89,11 @@ def main():
     # 用于记录每个 epoch 的结果
     results = []
 
+    # 创建结果文件夹
+    result_dir = 'DeepLearningProject/result'
+    if not os.path.exists(result_dir):
+        os.makedirs(result_dir)
+
     # Epochs
     for epoch in tqdm(range(start_epoch, epochs)):
         # 每2个epoch衰减一次teahcer forcing的概率
@@ -141,7 +147,7 @@ def main():
         print('--------------------------------------------------------------------------')
 
         # 记录每个 epoch 的结果
-        results.append({
+        epoch_result = {
             'epoch': epoch,
             'train_loss': train_loss,
             'validation_loss': val_loss,
@@ -151,14 +157,20 @@ def main():
             'edit_distance': edit_distance,
             'score': score,
             'teacher_forcing_probability': p
-        })
+        }
+        results.append(epoch_result)
+
+        # 保存每个 epoch 的结果到单独的 Excel 文件
+        df_epoch = pd.DataFrame([epoch_result])
+        df_epoch.to_excel(f'{result_dir}/training_results_epoch_{epoch}.xlsx', index=False)
+        print(f'Results for epoch {epoch} saved to {result_dir}/training_results_epoch_{epoch}.xlsx')
 
     writer.close()
 
-    # 保存结果到 Excel 文件
-    df = pd.DataFrame(results)
-    df.to_excel('training_results.xlsx', index=False)
-    print('Results saved to training_results.xlsx')
+    # 保存所有 epoch 的结果到总的 Excel 文件
+    df_total = pd.DataFrame(results)
+    df_total.to_excel(f'{result_dir}/training_results_total.xlsx', index=False)
+    print(f'Total results saved to {result_dir}/training_results_total.xlsx')
 
 
 def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch, p):
